@@ -1,0 +1,43 @@
+# All node_modules directories
+**/node_modules
+
+# All secrets
+**/.env.local
+**/.env.*.local
+
+# By default all dot files (.env, .git, ...)
+.*
+
+# Exception to dot files
+
+# Yarn
+!.yarnrc.yml
+!.yarn/plugins
+!.yarn/releases
+
+# Used when building with nextjs (next-eslint)
+!.eslintrc.base.json
+!.prettierignore
+!.prettierrc.json
+!.eslintignore
+
+# npm
+!.npmrc
+
+
+# Docker related
+Dockerfile
+docker-compose.*.yml
+docker-compose.yml
+docker
+
+
+# Log files
+logs
+*.log
+
+# Temp files
+tmp
+*.tmp
+
+

@@ -1,0 +1,109 @@
+name: CI-web-app
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "apps/web-app/**"
+      - "packages/**"
+      - "package.json"
+      - "tsconfig.base.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".github/workflows/**"
+      - ".eslintrc.base.json"
+      - ".eslintignore"
+
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    # Optional:
+    #   Only consider those files/paths to trigger the github action
+    #   to prevent unnecessary builds.
+    paths:
+      - "apps/web-app/**"
+      - "packages/**"
+      - "package.json"
+      - "tsconfig.base.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".github/workflows/**"
+      - ".eslintrc.base.json"
+      - ".eslintignore"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14.x]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+
+      - name: Restore nextjs build web-app from cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/apps/web-app/.next/cache
+          key: ${{ runner.os }}-nextjs-web-app-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+
+      - name: Check for duplicate dependencies in lock file
+        run: |
+          yarn dedupe --check
+
+      #- name: Generate Prisma client
+      #  working-directory: apps/web-app
+      #  run: |
+      #    yarn prisma generate
+
+      - name: Typecheck
+        working-directory: apps/web-app
+        run: |
+          yarn typecheck
+
+      - name: Linter
+        working-directory: apps/web-app
+        run: |
+          yarn lint
+
+      - name: Unit tests
+        working-directory: apps/web-app
+        run: |
+          yarn ci-test:unit
+
+      - name: Build web-app
+        working-directory: apps/web-app
+        run: |
+          yarn build
+        env:
+          NEXTJS_BUILD_TARGET: server
+          # Speed up build cause they are linted in a previous step
+          NEXTJS_IGNORE_ESLINT: 1
+          # Speed up build by not running sourcemap upload (not even dry-run)
+          # Disable sourcemaps will speed up ci
+          # be sure to disable it if you intent to use the build
+          # done in this step (i.e: deploy, docker....)
+          NEXT_DISABLE_SOURCEMAPS: 1
+          NEXT_TELEMETRY_DISABLED: 0
+          # Fully disable sentry registration here (no overhead in build time)
+          NEXT_DISABLE_SENTRY: 1
+          # Disable sentry source map upload (when not needed)
+          NEXT_SENTRY_DRY_RUN: 1
+
+      - name: Check bundle size
+        working-directory: apps/web-app
+        run: |
+          yarn bundle:check-size
+

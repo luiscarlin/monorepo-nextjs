@@ -1,0 +1,94 @@
+name: CI-blog-app
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "apps/blog-app/**"
+      - "packages/**"
+      - "package.json"
+      - "tsconfig.base.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".eslintrc.base.json"
+      - ".eslintignore"
+      - ".github/workflows/**"
+
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - "apps/blog-app/**"
+      - "packages/**"
+      - "package.json"
+      - "tsconfig.base.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".eslintrc.base.json"
+      - ".eslintignore"
+      - ".github/workflows/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14.x]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+
+      - name: Restore nextjs build blog-app from cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/apps/blog-app/.next/cache
+          key: ${{ runner.os }}-nextjs-blog-app-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+
+      - name: Check for duplicate dependencies in lock file
+        run: |
+          yarn dedupe --check
+
+      - name: Typecheck
+        working-directory: apps/blog-app
+        run: |
+          yarn typecheck
+
+      - name: Linter
+        working-directory: apps/blog-app
+        run: |
+          yarn lint
+
+      - name: Unit tests
+        working-directory: apps/blog-app
+        run: |
+          yarn ci-test:unit
+
+      - name: Build blog-app
+        working-directory: apps/blog-app
+        run: |
+          yarn build
+        env:
+          # Disable sourcemaps will speed up ci
+          # be sure to disable it if you intent to use the build
+          # done in this step (i.e: deploy, docker....)
+          NEXT_DISABLE_SOURCEMAPS: 1
+          NEXT_TELEMETRY_DISABLED: 0
+          # Speed up build cause they are linted in a previous step
+          NEXTJS_IGNORE_ESLINT: 1
+          NEXTJS_BUILD_TARGET: server
+
+
+

@@ -1,0 +1,68 @@
+name: CI-packages
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "packages/**"
+      - "package.json"
+      - "tsconfig.base.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".eslintrc.base.json"
+      - ".eslintignore"
+      - ".github/workflows/**"
+
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - "packages/**"
+      - "package.json"
+      - "tsconfig.base.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".eslintrc.base.json"
+      - ".eslintignore"
+      - ".github/workflows/**"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14.x]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: |
+          yarn install --immutable
+
+      - name: Check for duplicate dependencies in lock file
+        run: |
+          yarn dedupe --check
+
+      - name: Typecheck
+        run: |
+          yarn packages:typecheck
+
+      - name: Linter
+        run: |
+          yarn packages:lint
+
+      - name: Build
+        run: |
+          yarn packages:build
+
+
+

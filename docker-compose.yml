@@ -1,0 +1,78 @@
+version: "3.8"
+
+services:
+  #
+  # BUILTKIT_PROGRESS=plain DOCKER_BUILDKIT=1 docker-compose build --force-rm --progress=plain workspaces-full-install
+  #
+  workspaces-full-install:
+    profiles:
+      - donotstart
+    stdin_open: true
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      target: workspaces-full-install
+
+  builder:
+    profiles:
+      - donotstart
+    container_name: nextjs-monorepo-web-app_dev-build
+    stdin_open: true
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      target: builder
+
+  web-app-dev:
+    # Service must be started explicitly with docker-compose up web-app
+    profiles:
+      - donotstart
+    container_name: nextjs-monorepo-web-app_dev
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      target: web-app-dev
+    stdin_open: true
+    ports:
+      - target: 8000
+        published: 8000
+        protocol: tcp
+    volumes:
+      - .:/app/
+      - excluded_build:/app/apps/web-app/.next/
+    depends_on:
+      - main-db
+
+  main-db:
+    container_name: nextjs-monorepo-example-main-db
+    image: postgres:13-alpine
+    ports:
+      - target: 5432
+        published: 5432
+        protocol: tcp
+    environment:
+      - POSTGRES_DB=maindb
+      - POSTGRES_PASSWORD=!ChangeMe!
+      - POSTGRES_USER=nextjs
+    volumes:
+      - db_data:/var/lib/postgresql/data:rw
+      # you may use a bind-mounted host directory instead,
+      # so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/db/data:/var/lib/postgresql/data:rw
+
+  pgadmin4:
+    container_name: nextjs-monorepo-example-pgadmin4
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=pgadmin4@pgadmin.org
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      #- PGADMIN_CONFIG_SERVER_MODE='False'
+    ports:
+      - target: 80
+        published: 5555
+        protocol: tcp
+
+volumes:
+  excluded_build:
+  db_data:
